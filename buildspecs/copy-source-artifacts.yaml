@@ -14,15 +14,19 @@ phases:
 
   build:
     commands:
-      # Print environment variables for debugging
+      # Debug: List the current directory permissions
+      - echo "Listing current directory files and permissions:"
+      - ls -la
+
+      # Debug: Print environment variables
       - echo "CODEBUILD_WEBHOOK_TRIGGER=$CODEBUILD_WEBHOOK_TRIGGER"
       - echo "CODEBUILD_RESOLVED_SOURCE_VERSION=$CODEBUILD_RESOLVED_SOURCE_VERSION"
       - echo "CODEBUILD_SOURCE_REPO_URL=$CODEBUILD_SOURCE_REPO_URL"
 
-      # Update system packages, use sudo for permissions
-      - sudo apt-get update -y -q
+      # Remove system package update for now to isolate the issue
+      #- sudo apt-get update -y -q
 
-      # Install dependencies, with --unsafe-perm flag to avoid permission issues
+      # Install dependencies with --unsafe-perm flag
       - npm install --no-progress --unsafe-perm
 
       # Extract source branch from CODEBUILD_WEBHOOK_TRIGGER
@@ -32,13 +36,13 @@ phases:
       # Clean-up workspace
       - rm -rf ./node_modules ./dist
 
-      # Ensure zip is installed (in case it's missing)
-      - sudo apt-get install zip -y
+      # Check if 'zip' is available
+      - which zip || sudo apt-get install zip -y
 
       # Archive workspace
       - zip -qr source.zip .
 
-      # Ensure aws-cli is available (if not, install it)
+      # Check if aws-cli is available
       - which aws || pip install awscli
 
       # Upload workspace archive to S3, using environment variables
