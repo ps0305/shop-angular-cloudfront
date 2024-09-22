@@ -14,14 +14,32 @@ phases:
 
   build:
     commands:
-      # Update system packages
-      - apt-get update -y -q
-      # Install dependencies
-      - npm install --no-progress
+      # Print environment variables for debugging
+      - echo "CODEBUILD_WEBHOOK_TRIGGER=$CODEBUILD_WEBHOOK_TRIGGER"
+      - echo "CODEBUILD_RESOLVED_SOURCE_VERSION=$CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - echo "CODEBUILD_SOURCE_REPO_URL=$CODEBUILD_SOURCE_REPO_URL"
+
+      # Update system packages, use sudo for permissions
+      - sudo apt-get update -y -q
+
+      # Install dependencies, with --unsafe-perm flag to avoid permission issues
+      - npm install --no-progress --unsafe-perm
+
+      # Extract source branch from CODEBUILD_WEBHOOK_TRIGGER
       - SOURCE_BRANCH=$(echo $CODEBUILD_WEBHOOK_TRIGGER | awk '{split($0, a,"/"); print a[2]}')
+      - echo "Extracted source branch: $SOURCE_BRANCH"
+
       # Clean-up workspace
       - rm -rf ./node_modules ./dist
+
+      # Ensure zip is installed (in case it's missing)
+      - sudo apt-get install zip -y
+
       # Archive workspace
       - zip -qr source.zip .
-      # Upload workspace archive to S3
-      - aws s3 cp source.zip s3://${SOURCE_OUTPUT_BUCKET}/${SOURCE_PATH}/${APP_NAME}/${APP_NAME}.zip --metadata CommitID="${CODEBUILD_RESOLVED_SOURCE_VERSION}",BranchName="${CODEBUILD_SOURCE_VERSION}",RepoURL="${CODEBUILD_SOURCE_REPO_URL}"
+
+      # Ensure aws-cli is available (if not, install it)
+      - which aws || pip install awscli
+
+      # Upload workspace archive to S3, using environment variables
+      - aws s3 cp source.zip s3://${SOURCE_OUTPUT_BUCKET}/${SOURCE_PATH}/${APP_NAME}/${APP_NAME}.zip --metadata CommitID="${CODEBUILD_RESOLVED_SOURCE_VERSION}",BranchName="${SOURCE_BRANCH}",RepoURL="${CODEBUILD_SOURCE_REPO_URL}"
